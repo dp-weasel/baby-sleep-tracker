@@ -1,0 +1,16 @@
+# Binarios
+/baby-sleep
+/cmd/server/server
+
+# SQLite (Evitá subir tu data real)
+*.db
+*.db-journal
+*.db-wal
+
+# Go
+go.sum
+vendor/
+
+# OS
+.DS_Store
+
