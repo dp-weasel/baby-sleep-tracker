@@ -2,7 +2,7 @@
 
 ## Propósito
 
-El propósito de este proyecto es proveer una aplicación simple para registrar y visualizar eventos relacionados con el descanso de un bebé.
+El propósito de este proyecto es proveer una aplicación simple para registrar y visualizar eventos relacionados con el descanso de un bebé, diseñada para correr en hardware de bajos recursos (Raspberry Pi 3B+) y accesible desde cualquier navegador en la red local.
 
 En su versión inicial, la aplicación permite registrar cuándo el bebé se duerme y cuándo se despierta, junto con sus marcas de tiempo, y mostrar un historial corto de la actividad reciente.
 
@@ -13,7 +13,7 @@ El diseño contempla la posibilidad de incorporar otros tipos de eventos en el f
 Dentro del alcance:
 
 * Aplicación web para registrar eventos.
-* Backend encargado de persistir y exponer los eventos.
+* Backend encargado de persistir eventos y renderizar la interfaz.
 * Visualización de un historial reciente con duraciones básicas.
 
 Fuera del alcance (versión inicial):
@@ -26,7 +26,7 @@ Fuera del alcance (versión inicial):
 
 El dominio se basa en el concepto de **evento**.
 
-En la versión inicial existe un único tipo funcional de evento: inicio y fin del sueño.
+En la versión inicial existen eventos de inicio y fin del sueño.
 
 Cada evento posee:
 
@@ -39,15 +39,20 @@ El modelo está pensado para permitir la incorporación de nuevos tipos de event
 
 ## Arquitectura del sistema
 
-El sistema adopta una arquitectura simple y local.
+El sistema adopta una arquitectura simple y local y orientada a **hipermedia con renderizado del lado del servidor**.
 
 Componentes:
 
 * Base de datos SQLite para persistencia.
-* Backend en Go para exponer la API y aplicar reglas del dominio.
-* Frontend web para la interacción con el usuario.
+* Backend en Go que concentra la lógica de dominio y el renderizado de HTML.
+* Frontend web liviano basado en HTML generado en servidor y HTMX para interacciones dinámicas.
 
-El frontend se comunica con el backend mediante HTTP. Se evalúa el uso de HTMX para mantener una implementación liviana.
+El backend no expone una API REST clásica. En su lugar, actúa como proveedor de hipermedia:
+
+* Los endpoints HTTP devuelven HTML completo o fragmentos de HTML.
+* HTMX se utiliza para disparar requests y actualizar partes específicas de la interfaz sin recargar la página completa.
+
+Este enfoque prioriza simplicidad, bajo acoplamiento conceptual y un flujo claro request → respuesta HTML.
 
 ## Modelo de datos (SQL)
 
@@ -67,20 +72,25 @@ El sistema se inicializa con tipos de eventos mínimos relacionados con el sueñ
 
 ## Backend
 
-El backend gestiona el dominio de eventos y expone una API orientada a eventos.
+El backend está implementado en Go y funciona como el **núcleo del sistema**.
+
+Gestiona tanto el dominio de eventos como la generación de la interfaz web.
 
 ### Responsabilidades
 
 * Registrar eventos.
-* Exponer eventos recientes.
+* Exponer el historial reciente.
 * Aplicar validaciones mínimas.
 * Derivar información simple a partir de la secuencia de eventos.
+* Renderizar vistas HTML mediante Go Templates.
 
 ### Interfaz
 
-* API HTTP con intercambio de datos en JSON.
-* Una única operación conceptual para el registro de eventos.
-* Consulta de eventos ordenados cronológicamente, con información derivada opcional.
+* Endpoints HTTP que devuelven HTML (no JSON como contrato principal).
+* Operaciones orientadas a acciones del dominio (por ejemplo, registrar un evento).
+* Soporte para respuestas parciales destinadas a ser consumidas por HTMX.
+
+No existe una separación estricta entre “API” y “frontend”. El backend y la interfaz forman un sistema cohesivo.
 
 ### Reglas del dominio
 
@@ -90,7 +100,14 @@ El backend gestiona el dominio de eventos y expone una API orientada a eventos.
 
 ## Frontend
 
-El frontend provee una interfaz web mínima para registrar eventos y consultar el historial.
+El frontend provee una interfaz web mínima y funcional, pensada para uso frecuente en un contexto doméstico.
+
+### Principios
+
+* HTML renderizado del lado del servidor.
+* Uso de Go Templates para vistas.
+* Interactividad acotada mediante HTMX.
+* Ausencia de frameworks de frontend complejos o lógica pesada en el cliente.
 
 ### Interacción
 
@@ -105,4 +122,4 @@ El frontend provee una interfaz web mínima para registrar eventos y consultar e
 ### Relación con el backend
 
 * Comunicación exclusiva mediante HTTP.
-* El frontend no contiene lógica compleja; se limita a registrar eventos y mostrar resultados.
+* El frontend se limita a disparar acciones y mostrar HTML generado por el backend.
