@@ -1,6 +1,7 @@
 # Binarios
 /baby-sleep
 /cmd/server/server
+/bin
 
 # SQLite (Evitá subir tu data real)
 *.db

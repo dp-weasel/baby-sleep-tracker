@@ -10,11 +10,15 @@ import (
 
 // EventRepository implements EventStore and EventReader using SQLite.
 type EventRepository struct {
-	db *sql.DB
+	db       *sql.DB
+	resolver *EventTypeResolver
 }
 
-func NewEventRepository(db *sql.DB) *EventRepository {
-	return &EventRepository{db: db}
+func NewEventRepository(db *sql.DB, resolver *EventTypeResolver) *EventRepository {
+	return &EventRepository{
+		db:       db,
+		resolver: resolver,
+	}
 }
 
 // Ensure EventRepository implements required interfaces
@@ -23,16 +27,19 @@ var _ contracts.EventReader = (*EventRepository)(nil)
 
 func (r *EventRepository) Last() (*domain.Event, error) {
 	row := r.db.QueryRow(`
-		SELECT type, timestamp
-		FROM events
-		ORDER BY timestamp DESC
+		SELECT et.name, al.event_time, al.note
+		FROM activity_logs al
+		JOIN event_types et ON et.id = al.event_type_id
+		ORDER BY al.event_time DESC
 		LIMIT 1
 	`)
 
-	var e domain.Event
-	var ts int64
+	var typeName string
+	var eventTime string
+	var note sql.NullString
 
-	err := row.Scan(&e.Type, &ts)
+	err := row.Scan(&typeName, &eventTime, &note)
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -40,16 +47,24 @@ func (r *EventRepository) Last() (*domain.Event, error) {
 		return nil, err
 	}
 
-	e.Timestamp = time.Unix(ts, 0)
-	return &e, nil
+	ts, err := time.Parse(time.RFC3339, eventTime)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.Event{
+		Type:      domain.EventType(typeName),
+		Timestamp: ts,
+		Note:      note.String,
+	}, nil
 }
 
 func (r *EventRepository) ExistsAt(ts time.Time) (bool, error) {
 	row := r.db.QueryRow(`
 		SELECT COUNT(1)
-		FROM events
-		WHERE timestamp = ?
-	`, ts.Unix())
+		FROM activity_logs
+		WHERE event_time = ?
+		`, ts.Format(time.RFC3339))
 
 	var count int
 	if err := row.Scan(&count); err != nil {
@@ -59,18 +74,25 @@ func (r *EventRepository) ExistsAt(ts time.Time) (bool, error) {
 }
 
 func (r *EventRepository) Append(event domain.Event) error {
-	_, err := r.db.Exec(`
-		INSERT INTO events (type, timestamp)
-		VALUES (?, ?)
-	`, event.Type, event.Timestamp.Unix())
+	eventTypeID, err := r.resolver.Resolve(event.Type)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.Exec(`
+		INSERT INTO activity_logs (event_type_id, event_time, note)
+		VALUES (?, ?, ?)
+		`, eventTypeID, event.Timestamp.Format(time.RFC3339), event.Note)
+
 	return err
 }
 
 func (r *EventRepository) List(limit int) ([]domain.Event, error) {
 	query := `
-		SELECT type, timestamp
-		FROM events
-		ORDER BY timestamp ASC
+		SELECT et.name, al.event_time, al.note
+		FROM activity_logs al
+		JOIN event_types et ON et.id = al.event_type_id
+		ORDER BY al.event_time ASC
 	`
 
 	args := []any{}
@@ -88,16 +110,25 @@ func (r *EventRepository) List(limit int) ([]domain.Event, error) {
 	events := []domain.Event{}
 
 	for rows.Next() {
-		var e domain.Event
-		var ts int64
+		var typeName string
+		var eventTime string
+		var note sql.NullString
 
-		if err := rows.Scan(&e.Type, &ts); err != nil {
+		if err := rows.Scan(&typeName, &eventTime, &note); err != nil {
 			return nil, err
 		}
 
-		e.Timestamp = time.Unix(ts, 0)
-		events = append(events, e)
+		ts, err := time.Parse(time.RFC3339, eventTime)
+		if err != nil {
+			return nil, err
+		}
+
+		events = append(events, domain.Event{
+			Type:      domain.EventType(typeName),
+			Timestamp: ts,
+			Note:      note.String,
+		})
 	}
 
-	return events, nil
+	return events, rows.Err()
 }

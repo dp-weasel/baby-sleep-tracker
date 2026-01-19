@@ -38,7 +38,7 @@ func TestRegisterEvent_FirstEventMustBeWakeUp(t *testing.T) {
 	store := &inMemoryEventStore{}
 	service := &RegisterEventService{Store: store}
 
-	err := service.Register(domain.SleepStart, time.Now())
+	err := service.Register(domain.SleepStart, time.Now(), "")
 	if err != domain.ErrInvalidFirstEvent {
 		t.Fatalf("expected ErrInvalidFirstEvent, got %v", err)
 	}
@@ -51,11 +51,11 @@ func TestRegisterEvent_ValidSequence(t *testing.T) {
 	t1 := time.Date(2026, 1, 10, 7, 0, 0, 0, time.UTC)
 	t2 := time.Date(2026, 1, 10, 8, 0, 0, 0, time.UTC)
 
-	if err := service.Register(domain.SleepEnd, t1); err != nil {
+	if err := service.Register(domain.SleepEnd, t1, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if err := service.Register(domain.SleepStart, t2); err != nil {
+	if err := service.Register(domain.SleepStart, t2, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

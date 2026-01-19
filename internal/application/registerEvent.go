@@ -13,8 +13,8 @@ type RegisterEventService struct {
 }
 
 // Register registers a new domain event enforcing domain rules.
-func (s *RegisterEventService) Register(eventType domain.EventType, ts time.Time) error {
-	event := domain.NewEvent(eventType, ts)
+func (s *RegisterEventService) Register(eventType domain.EventType, ts time.Time, note string) error {
+	event := domain.NewEvent(eventType, ts, note)
 
 	last, err := s.Store.Last()
 	if err != nil {
