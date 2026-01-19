@@ -1,40 +1,50 @@
-# Variables
-BINARY_NAME=baby-sleep
-DB_NAME=baby_sleep.db
-MIGRATIONS_DIR=internal/infrastructure/sqlite/migrations
+APP_NAME := baby-sleep-tracker
+BIN_DIR := bin
+CMD_DIR := ./cmd/$(APP_NAME)
+DB_FILE := baby-sleep-app.db
+MIGRATIONS_DIR := internal/infrastructure/sqlite/migrations
 
-## help: help: muestra esta ayuda
-.PHONY: help
+# Raspberry Pi 3B+ (ARMv7)
+PI_GOOS := linux
+PI_GOARCH := arm
+PI_GOARM := 7
+
+.PHONY: help build run test clean db-reset db-init build-pi
+
 help:
-	@echo "Uso:"
-	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+	@echo "Targets disponibles:"
+	@echo "  build       Compila el binario para desarrollo local"
+	@echo "  run         Compila y ejecuta la app"
+	@echo "  test        Ejecuta todos los tests"
+	@echo "  clean       Borra binarios"
+	@echo "  db-init     Crea la base SQLite y ejecuta migraciones"
+	@echo "  db-reset    Borra la base de datos SQLite"
+	@echo "  build-pi    Compila el binario para Raspberry Pi 3B+"
 
-## db/init: inicializa la base de datos sqlite y corre las migraciones
-.PHONY: db/init
-db/init:
-	@echo "Inicializando base de datos..."
-	@sqlite3 $(DB_NAME) < $(MIGRATIONS_DIR)/001-create_tables.sql
-	@sqlite3 $(DB_NAME) < $(MIGRATIONS_DIR)/002-seed_event_types.sql
-	@echo "Base de datos creada: $(DB_NAME)"
-
-## db/shell: abre la consola de sqlite3
-.PHONY: db/shell
-db/shell:
-	@sqlite3 $(DB_NAME)
-
-## build: compila el binario de Go
-.PHONY: build
 build:
-	@echo "Compilando..."
-	@go build -o $(BINARY_NAME) ./cmd/server/main.go
+	@mkdir -p $(BIN_DIR)
+	go build -o $(BIN_DIR)/$(APP_NAME) $(CMD_DIR)
 
-## run: ejecuta la aplicación
-.PHONY: run
 run: build
-	@./$(BINARY_NAME)
+	./$(BIN_DIR)/$(APP_NAME)
 
-## clean: limpia binarios y temporales
-.PHONY: clean
+test:
+	go test ./...
+
 clean:
-	@rm -f $(BINARY_NAME)
-	@echo "Limpieza completada"
+	rm -rf $(BIN_DIR)
+
+# Inicializa la base de datos local ejecutando migraciones
+db-init:
+	sqlite3 $(DB_FILE) < $(MIGRATIONS_DIR)/001-create_tables.sql
+	sqlite3 $(DB_FILE) < $(MIGRATIONS_DIR)/002-seed_event_types.sql
+
+# ⚠️ Borra la base de datos local. Usar solo en desarrollo.
+db-reset:
+	rm -f $(DB_FILE)
+
+# Build para Raspberry Pi 3B+ (ARMv7)
+build-pi:
+	@mkdir -p $(BIN_DIR)
+	GOOS=$(PI_GOOS) GOARCH=$(PI_GOARCH) GOARM=$(PI_GOARM) \
+		go build -o $(BIN_DIR)/$(APP_NAME)-pi $(CMD_DIR)
