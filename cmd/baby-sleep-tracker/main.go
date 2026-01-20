@@ -7,47 +7,56 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/dp-weasel/baby-sleep-tracker/internal/application"
+	"github.com/dp-weasel/baby-sleep-tracker/internal/application/command"
+	"github.com/dp-weasel/baby-sleep-tracker/internal/application/query"
 	"github.com/dp-weasel/baby-sleep-tracker/internal/infrastructure/sqlite"
-	httpapi "github.com/dp-weasel/baby-sleep-tracker/internal/interfaces/http/rest"
+	hyper "github.com/dp-weasel/baby-sleep-tracker/internal/interfaces/http/hypermedia"
+	rest "github.com/dp-weasel/baby-sleep-tracker/internal/interfaces/http/rest"
 )
 
 func main() {
-	// Open SQLite database
+	// --- Database ---
 	db, err := sql.Open("sqlite3", "./baby-sleep-app.db")
 	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
+		log.Fatal(err)
 	}
 	defer db.Close()
 
-	// Initialize EventTypeResolver (fail fast on misconfigured DB)
-	resolver, err := sqlite.NewEventTypeResolver(db)
+	// --- Infrastructure ---
+	eventTypeResolver, err := sqlite.NewEventTypeResolver(db)
 	if err != nil {
-		log.Fatalf("failed to initialize event types resolver: %v", err)
+		log.Fatal(err)
 	}
 
-	// Initialize repository
-	repo := sqlite.NewEventRepository(db, resolver)
+	eventRepo := sqlite.NewEventRepository(db, eventTypeResolver)
 
-	// Wire application services
-	registerService := &application.RegisterEventService{
-		Store: repo,
-	}
+	registerService := command.NewRegisterEventService(
+		eventRepo,
+		eventRepo, // si implementa EventReader también
+	)
 
-	queryService := &application.QueryPeriodsService{
-		Reader: repo,
-	}
+	queryService := query.NewQueryPeriodsService(eventRepo)
 
-	// For now, we just log that the app is wired correctly
-	log.Println("Baby Sleep Tracker backend initialized successfully")
+	// --- Application layer ---
+	recentCycles := query.NewRecentCyclesQuery(eventRepo)
 
-	// Initialize HTTP server
-	server := httpapi.NewServer(registerService, queryService)
+	// --- HTTP REST (legacy / debug) ---
+	restServer := rest.NewServer(registerService, queryService)
+	restHandler := restServer.Routes()
 
-	addr := ":8080"
-	log.Printf("HTTP server listening on %s", addr)
+	// --- HTTP Hypermedia ---
+	rootAssembler := hyper.NewRootAssembler(recentCycles)
+	rootHandler := hyper.NewRootHandler(eventRepo, rootAssembler)
 
-	if err := http.ListenAndServe(addr, server.Routes()); err != nil {
-		log.Fatalf("server failed: %v", err)
-	}
+	mux := http.NewServeMux()
+
+	// REST endpoints
+	mux.Handle("/events", restHandler)
+	mux.Handle("/periods", restHandler)
+
+	// Hypermedia root
+	mux.Handle("/", rootHandler)
+
+	log.Println("HTTP server listening on :8080")
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }

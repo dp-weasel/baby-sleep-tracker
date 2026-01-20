@@ -1,21 +1,25 @@
-package httpapi
+package rest
 
 import (
 	"encoding/json"
 	"net/http"
 	"time"
 
-	"github.com/dp-weasel/baby-sleep-tracker/internal/application"
+	"github.com/dp-weasel/baby-sleep-tracker/internal/application/command"
+	"github.com/dp-weasel/baby-sleep-tracker/internal/application/query"
 	"github.com/dp-weasel/baby-sleep-tracker/internal/domain"
 )
 
 // Server wires HTTP handlers to application services.
 type Server struct {
-	Register *application.RegisterEventService
-	Query    *application.QueryPeriodsService
+	Register *command.RegisterEventService
+	Query    *query.QueryPeriodsService
 }
 
-func NewServer(register *application.RegisterEventService, query *application.QueryPeriodsService) *Server {
+func NewServer(
+	register *command.RegisterEventService,
+	query *query.QueryPeriodsService,
+) *Server {
 	return &Server{
 		Register: register,
 		Query:    query,

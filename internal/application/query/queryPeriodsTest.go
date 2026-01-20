@@ -1,4 +1,4 @@
-package application
+package query
 
 import (
 	"testing"
@@ -17,6 +17,14 @@ func (r *inMemoryEventReader) List(limit int) ([]domain.Event, error) {
 		return r.events[:limit], nil
 	}
 	return r.events, nil
+}
+
+func (r *inMemoryEventReader) Last() (*domain.Event, error) {
+	if len(r.events) == 0 {
+		return nil, nil
+	}
+	e := r.events[len(r.events)-1]
+	return &e, nil
 }
 
 func TestQueryPeriods_DerivesCorrectPeriods(t *testing.T) {

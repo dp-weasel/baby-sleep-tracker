@@ -1,4 +1,4 @@
-package application
+package query
 
 import (
 	"github.com/dp-weasel/baby-sleep-tracker/internal/domain"
@@ -8,6 +8,10 @@ import (
 // QueryPeriodsService orchestrates the use case of deriving periods from events.
 type QueryPeriodsService struct {
 	Reader contracts.EventReader
+}
+
+func NewQueryPeriodsService(reader contracts.EventReader) *QueryPeriodsService {
+	return &QueryPeriodsService{Reader: reader}
 }
 
 // Query derives periods from the ordered event sequence.

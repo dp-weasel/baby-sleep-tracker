@@ -1,4 +1,4 @@
-package application
+package command
 
 import (
 	"time"
@@ -10,6 +10,10 @@ import (
 // RegisterEventService orchestrates the use case of registering a new event.
 type RegisterEventService struct {
 	Store contracts.EventStore
+}
+
+func NewRegisterEventService(store contracts.EventStore, reader contracts.EventReader) *RegisterEventService {
+	return &RegisterEventService{Store: store}
 }
 
 // Register registers a new domain event enforcing domain rules.
