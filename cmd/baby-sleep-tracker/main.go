@@ -9,7 +9,7 @@ import (
 
 	"github.com/dp-weasel/baby-sleep-tracker/internal/application"
 	"github.com/dp-weasel/baby-sleep-tracker/internal/infrastructure/sqlite"
-	httpapi "github.com/dp-weasel/baby-sleep-tracker/internal/interfaces/http"
+	httpapi "github.com/dp-weasel/baby-sleep-tracker/internal/interfaces/http/rest"
 )
 
 func main() {
