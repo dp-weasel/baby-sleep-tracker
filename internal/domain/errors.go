@@ -11,4 +11,5 @@ var (
 	ErrOutOfOrder          = DomainError("event timestamp is out of order")
 	ErrConsecutiveSameType = DomainError("consecutive events of same type are not allowed")
 	ErrInsufficientEvents  = DomainError("not enough events to derive periods")
+	ErrInvalidEventType    = DomainError("invalid event type")
 )
